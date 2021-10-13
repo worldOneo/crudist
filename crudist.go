@@ -34,9 +34,18 @@ type Crudist interface {
 	Delete(path string, handler ...HandlerFunc)
 }
 
+// GinConfig type to provide additional data for crudist gin
+type GinConfig struct {
+	Middleware gin.HandlersChain
+}
+
 // Gin creates a new gin operator for crudist
-func Gin(server *gin.Engine, db *gorm.DB) *GinOperator {
-	return &GinOperator{server, db}
+func Gin(server *gin.Engine, db *gorm.DB, configs... GinConfig) *GinOperator {
+	config := GinConfig{}
+	if len(configs) > 0 {
+		config = configs[0]
+	}
+	return &GinOperator{server, db, config.Middleware}
 }
 
 // ErrorBadRequest when JSON parsing failed

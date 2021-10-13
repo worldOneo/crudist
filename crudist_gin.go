@@ -7,8 +7,9 @@ import (
 
 // GinOperator type for Crudists gin implementation
 type GinOperator struct {
-	server *gin.Engine
-	db *gorm.DB
+	server     *gin.Engine
+	db         *gorm.DB
+	Middleware []gin.HandlerFunc
 }
 
 func (g *GinOperator) DB() *gorm.DB {
@@ -31,7 +32,6 @@ func (g *GinOperator) Delete(path string, handler ...HandlerFunc) {
 	g.server.DELETE(path, g.toGinHandler(handler...)...)
 }
 
-
 func (g *GinOperator) toContext(ctx *gin.Context) Context {
 	return NewGinContext(ctx)
 }
@@ -46,5 +46,5 @@ func (g *GinOperator) toGinHandler(handlers ...HandlerFunc) []gin.HandlerFunc {
 			}
 		}
 	}
-	return new
+	return append(g.Middleware, new...)
 }

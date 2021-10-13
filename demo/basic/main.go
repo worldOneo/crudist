@@ -23,10 +23,22 @@ type User struct {
 	Password string `json:"password" gorm:"size:128"`
 }
 
+func createGinConfig() crudist.GinConfig {
+	return crudist.GinConfig{
+		// Middleware Example:
+		Middleware: []gin.HandlerFunc{
+			func(c *gin.Context) {
+				c.Header("X-MiddleWare", "1")
+				c.Next()
+			},
+		},
+	}
+}
+
 func main() {
 	// SQL Connection
 	sql := mysql.Open(fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=True", "root", "1234", "localhost", "test"))
-	
+
 	// Init gorm
 	db, err := gorm.Open(sql, &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
@@ -38,16 +50,15 @@ func main() {
 	// Create databases
 	db.Migrator().AutoMigrate(&User{})
 
-
 	// Init gin
 	g := gin.Default()
-	
-	// new Crudist instance
-	c := crudist.Gin(g, db)
-	
+
+	// new Crudist instance (ginConfig is optional)
+	c := crudist.Gin(g, db, createGinConfig())
+
 	// crudist Handler for user model
 	crudist.Handle(c, "user/", &User{})
-	
+
 	// Start gin server
 	g.Run("localhost:3000")
 }
