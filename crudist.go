@@ -94,6 +94,20 @@ func Handle(crudist Crudist, path string, model interface{}) {
 		return ctx.JSON(200, model)
 	})
 
+	crudist.Delete(path, func(ctx Context) error {
+		model := newModel()
+		err := ctx.JSONBody(model)
+		if err != nil {
+			log.Print(err)
+			return ErrorBadRequest
+		}
+		err = crudist.DB().Delete(model).Error
+		if err != nil {
+			return ErrorInternalServer
+		}
+		return ctx.JSON(200, model)
+	})
+
 	crudist.Patch(path, func(ctx Context) error {
 		model := newModel()
 		err := ctx.JSONBody(model)
