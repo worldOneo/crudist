@@ -23,6 +23,7 @@ type User struct {
 	Password string `json:"password" gorm:"size:128"`
 }
 
+// Optional GinConfig
 func createGinConfig() crudist.GinConfig {
 	return crudist.GinConfig{
 		// Middleware Example:

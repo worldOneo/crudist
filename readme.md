@@ -22,7 +22,7 @@ type User struct {
 crudist.Handle(c, "user/", &User{})
 ```
 
-Result routs:
+Result routes:
 ```sh
 GET    /user/
 GET    /user/:id/

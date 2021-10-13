@@ -2,7 +2,6 @@ package crudist
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 
@@ -40,7 +39,7 @@ type GinConfig struct {
 }
 
 // Gin creates a new gin operator for crudist
-func Gin(server *gin.Engine, db *gorm.DB, configs... GinConfig) *GinOperator {
+func Gin(server *gin.Engine, db *gorm.DB, configs ...GinConfig) *GinOperator {
 	config := GinConfig{}
 	if len(configs) > 0 {
 		config = configs[0]
@@ -50,8 +49,13 @@ func Gin(server *gin.Engine, db *gorm.DB, configs... GinConfig) *GinOperator {
 
 // ErrorBadRequest when JSON parsing failed
 var ErrorBadRequest error = fmt.Errorf("Bad Request")
-// ErrorInternalServer when the DB couldn't 
+
+// ErrorInternalServer when the DB couldn't
 var ErrorInternalServer error = fmt.Errorf("Internal Server Error")
+
+// JSONDoc can be used to create an json document inline
+// with a clear purpose
+type JSONDoc map[string]interface{}
 
 // Handle creates handler for GET POST PATCH and DELETE operation for your model
 func Handle(crudist Crudist, path string, model interface{}) {
@@ -63,6 +67,35 @@ func Handle(crudist Crudist, path string, model interface{}) {
 
 	newModels := func() interface{} {
 		return reflect.New(sliceType).Interface()
+	}
+
+	quickHandle := func(ctx Context, f func(model interface{}) error) error {
+		model := newModel()
+		err := ctx.JSONBody(model)
+		if err != nil {
+			return ErrorBadRequest
+		}
+		err = f(model)
+		if err != nil {
+			return err
+		}
+		return ctx.JSON(200, model)
+	}
+
+	quickError := func(ctx Context, err error) error {
+		if err != nil {
+			if err == ErrorBadRequest {
+				return ctx.JSON(400, JSONDoc{
+					"message": "Bad Request",
+					"code":    400,
+				})
+			}
+			return ctx.JSON(500, JSONDoc{
+				"message": "Internal Server Error",
+				"code":    500,
+			})
+		}
+		return nil
 	}
 
 	crudist.Get(path, func(ctx Context) error {
@@ -90,43 +123,20 @@ func Handle(crudist Crudist, path string, model interface{}) {
 	})
 
 	crudist.Post(path, func(ctx Context) error {
-		model := newModel()
-		err := ctx.JSONBody(model)
-		if err != nil {
-			log.Print(err)
-			return ErrorBadRequest
-		}
-		err = crudist.DB().Create(model).Error
-		if err != nil {
-			return ErrorInternalServer
-		}
-		return ctx.JSON(200, model)
+		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
+				return crudist.DB().Create(model).Error
+			}))
 	})
 
 	crudist.Delete(path, func(ctx Context) error {
-		model := newModel()
-		err := ctx.JSONBody(model)
-		if err != nil {
-			log.Print(err)
-			return ErrorBadRequest
-		}
-		err = crudist.DB().Delete(model).Error
-		if err != nil {
-			return ErrorInternalServer
-		}
-		return ctx.JSON(200, model)
+		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
+				return crudist.DB().Delete(model).Error
+			}))
 	})
 
 	crudist.Patch(path, func(ctx Context) error {
-		model := newModel()
-		err := ctx.JSONBody(model)
-		if err != nil {
-			return ErrorBadRequest
-		}
-		err = crudist.DB().Save(model).Error
-		if err != nil {
-			return ErrorInternalServer
-		}
-		return ctx.JSON(200, model)
+		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
+				return crudist.DB().Save(model).Error
+			}))
 	})
 }
