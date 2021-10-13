@@ -11,7 +11,6 @@ type GinOperator struct {
 	db *gorm.DB
 }
 
-
 func (g *GinOperator) DB() *gorm.DB {
 	return g.db
 }
@@ -33,6 +32,9 @@ func (g *GinOperator) Delete(path string, handler ...HandlerFunc) {
 }
 
 
+func (g *GinOperator) toContext(ctx *gin.Context) Context {
+	return NewGinContext(ctx)
+}
 
 func (g *GinOperator) toGinHandler(handlers ...HandlerFunc) []gin.HandlerFunc {
 	new := make([]gin.HandlerFunc, len(handlers))
