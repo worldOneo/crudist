@@ -2,30 +2,20 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/worldOneo/crudist"
+	"github.com/worldOneo/crudist/demo/models"
+	ginoperator "github.com/worldOneo/crudist/operator/gin"
+	gormstorage "github.com/worldOneo/crudist/storage/gorm"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-type BaseModel struct {
-	ID        uint      `gorm:"primarykey"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-type User struct {
-	BaseModel
-	Username string `json:"username" gorm:"size:100"`
-	Password string `json:"password" gorm:"size:128"`
-}
-
 // Optional GinConfig
-func createGinConfig() crudist.GinConfig {
-	return crudist.GinConfig{
+func createGinConfig() ginoperator.Config {
+	return ginoperator.Config{
 		// Middleware Example:
 		Middleware: []gin.HandlerFunc{
 			func(c *gin.Context) {
@@ -48,17 +38,19 @@ func main() {
 		panic(err)
 	}
 
-	// Create databases
-	db.Migrator().AutoMigrate(&User{})
+	// Create tables
+	db.Migrator().AutoMigrate(&models.GormUser{})
 
 	// Init gin
 	g := gin.Default()
 
 	// new Crudist instance (ginConfig is optional)
-	c := crudist.Gin(g, db, createGinConfig())
+	server := ginoperator.Gin(g, createGinConfig())
+	storage := gormstorage.Gorm(db)
+	c := crudist.New(server, storage)
 
 	// crudist Handler for user model
-	crudist.Handle(c, "user/", &User{})
+	crudist.Handle(c, "user/", &models.GormUser{})
 
 	// Start gin server
 	g.Run("localhost:3000")

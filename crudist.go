@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // Context is custom for crudist handlers
@@ -21,8 +18,53 @@ type HandlerFunc func(ctx Context) error
 
 // Crudist base interface definition
 type Crudist interface {
-	// DB returns the db for the crudist instance
-	DB() *gorm.DB
+	// Storage for the storage layer
+	Storage() Storage
+	// Server for the web framework connection
+	Server() Server
+	// Config for additional functionality
+	Config() Config
+}
+
+type baseCrudist struct {
+	server  Server
+	storage Storage
+	config  Config
+}
+
+// Storage for the storage layer
+func (b *baseCrudist) Storage() Storage {
+	return b.storage
+}
+
+// Server for the web framework connection
+func (b *baseCrudist) Server() Server {
+	return b.server
+}
+
+// Config for additional functionality
+func (b *baseCrudist) Config() Config {
+	return b.config
+}
+
+// New creates a new Crudist instance from a server and a storage
+func New(server Server, storage Storage, config ...Config) Crudist {
+	conf := Config{
+		IDGenerator: func(id string) (interface{}, error) {
+			return strconv.Atoi(id)
+		},
+	}
+	if len(config) > 0 {
+		additional := config[0]
+		if additional.IDGenerator != nil {
+			conf.IDGenerator = additional.IDGenerator
+		}
+	}
+	return &baseCrudist{server, storage, conf}
+}
+
+// Server interface definition for connecting to the web framework
+type Server interface {
 	// Get registers new handlers for http get method
 	Get(path string, handler ...HandlerFunc)
 	// Get registers new handlers for http Post method
@@ -33,18 +75,27 @@ type Crudist interface {
 	Delete(path string, handler ...HandlerFunc)
 }
 
-// GinConfig type to provide additional data for crudist gin
-type GinConfig struct {
-	Middleware gin.HandlersChain
+// Storage interface for the storage provider
+type Storage interface {
+	// Get gets a model slice to populate
+	Get(models interface{}) error
+	// GetByID gets a model with the specific id
+	GetByID(model interface{}, id interface{}) error
+	// Create adds a new model
+	Create(model interface{}) error
+	// Update modifies a model
+	Update(model interface{}) error
+	// Delete removes a model
+	Delete(model interface{}) error
 }
 
-// Gin creates a new gin operator for crudist
-func Gin(server *gin.Engine, db *gorm.DB, configs ...GinConfig) *GinOperator {
-	config := GinConfig{}
-	if len(configs) > 0 {
-		config = configs[0]
-	}
-	return &GinOperator{server, db, config.Middleware}
+// Config for additional data for crudist
+type Config struct {
+	// IDGenerator to use for the Storage as id
+	// id from the path parameter string in the route GET path/:id
+	//
+	// Default: strconv.Itoa
+	IDGenerator func(id string) (interface{}, error)
 }
 
 // ErrorBadRequest when JSON parsing failed
@@ -90,53 +141,61 @@ func Handle(crudist Crudist, path string, model interface{}) {
 					"code":    400,
 				})
 			}
-			return ctx.JSON(500, JSONDoc{
+			sendErr := ctx.JSON(500, JSONDoc{
 				"message": "Internal Server Error",
 				"code":    500,
 			})
+			if sendErr != nil {
+				return sendErr
+			}
+			return err
 		}
 		return nil
 	}
 
-	crudist.Get(path, func(ctx Context) error {
+	server := crudist.Server()
+	storage := crudist.Storage()
+	conf := crudist.Config()
+
+	server.Get(path, func(ctx Context) error {
 		models := newModels()
 		fmt.Print(reflect.TypeOf(models))
-		err := crudist.DB().Find(models).Error
+		err := storage.Get(models)
 		if err != nil {
 			return err
 		}
 		return ctx.JSON(200, models)
 	})
 
-	crudist.Get(path+":id/", func(ctx Context) error {
+	server.Get(path+":id/", func(ctx Context) error {
 		stringID := ctx.Param("id")
-		id, err := strconv.Atoi(stringID)
+		id, err := conf.IDGenerator(stringID)
 		if err != nil {
 			return ErrorBadRequest
 		}
 		model := newModel()
-		err = crudist.DB().Find(model, id).Error
+		err = storage.GetByID(model, id)
 		if err != nil {
 			return err
 		}
 		return ctx.JSON(200, model)
 	})
 
-	crudist.Post(path, func(ctx Context) error {
+	server.Post(path, func(ctx Context) error {
 		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
-				return crudist.DB().Create(model).Error
-			}))
+			return storage.Create(model)
+		}))
 	})
 
-	crudist.Delete(path, func(ctx Context) error {
+	server.Delete(path, func(ctx Context) error {
 		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
-				return crudist.DB().Delete(model).Error
-			}))
+			return storage.Delete(model)
+		}))
 	})
 
-	crudist.Patch(path, func(ctx Context) error {
+	server.Patch(path, func(ctx Context) error {
 		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
-				return crudist.DB().Save(model).Error
-			}))
+			return storage.Update(model)
+		}))
 	})
 }
