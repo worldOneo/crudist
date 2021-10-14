@@ -1,8 +1,18 @@
 # CRUDist - Model Driven API Development
 [![GoReport](https://goreportcard.com/badge/github.com/worldOneo/crudist)](https://goreportcard.com/report/github.com/worldOneo/crudist)  
-Automagicaly create CRUD APIs for your gorm models.
+Automagicaly create CRUD APIs for your data models.
 
-## Example
+## Currently supported
+To get support for your favourite Web or Model Framework open an issue.
+### Web Frameworks:
+  * [x] Fiber
+  * [x] Gin
+
+### Model Frameworks:
+  * [x] GORM
+
+## Example (gorm)
+_(Full working examples in demo folder)_
 ### Model definition
 ```go
 type BaseModel struct {
@@ -14,7 +24,7 @@ type BaseModel struct {
 type User struct {
 	BaseModel
 	Username string `json:"username" gorm:"size:100"`
-	Password string `json:"password" gorm:"size:128"`
+	Password string `json:"-" gorm:"size:128"`
 }
 ```
 ### CRUD API
