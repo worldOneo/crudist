@@ -27,6 +27,7 @@ Result routes:
 GET    /user/
 GET    /user/:id/
 POST   /user/
-PATCH  /user/
 DELETE /user/
+DELETE /user/:id/
+PATCH  /user/
 ```

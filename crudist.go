@@ -87,6 +87,8 @@ type Storage interface {
 	Update(model interface{}) error
 	// Delete removes a model
 	Delete(model interface{}) error
+	// DeleteByID deletes a model given an id
+	DeleteByID(model, id interface{}) error
 }
 
 // Config for additional data for crudist
@@ -120,6 +122,10 @@ func Handle(crudist Crudist, path string, model interface{}) {
 		return reflect.New(sliceType).Interface()
 	}
 
+	server := crudist.Server()
+	storage := crudist.Storage()
+	conf := crudist.Config()
+
 	quickHandle := func(ctx Context, f func(model interface{}) error) error {
 		model := newModel()
 		err := ctx.JSONBody(model)
@@ -127,6 +133,20 @@ func Handle(crudist Crudist, path string, model interface{}) {
 			return ErrorBadRequest
 		}
 		err = f(model)
+		if err != nil {
+			return err
+		}
+		return ctx.JSON(200, model)
+	}
+
+	quickHandleID := func(ctx Context, f func(model interface{}, id interface{}) error) error {
+		stringID := ctx.Param("id")
+		id, err := conf.IDGenerator(stringID)
+		if err != nil {
+			return ErrorBadRequest
+		}
+		model := newModel()
+		err = f(model, id)
 		if err != nil {
 			return err
 		}
@@ -153,13 +173,8 @@ func Handle(crudist Crudist, path string, model interface{}) {
 		return nil
 	}
 
-	server := crudist.Server()
-	storage := crudist.Storage()
-	conf := crudist.Config()
-
 	server.Get(path, func(ctx Context) error {
 		models := newModels()
-		fmt.Print(reflect.TypeOf(models))
 		err := storage.Get(models)
 		if err != nil {
 			return err
@@ -168,17 +183,9 @@ func Handle(crudist Crudist, path string, model interface{}) {
 	})
 
 	server.Get(path+":id/", func(ctx Context) error {
-		stringID := ctx.Param("id")
-		id, err := conf.IDGenerator(stringID)
-		if err != nil {
-			return ErrorBadRequest
-		}
-		model := newModel()
-		err = storage.GetByID(model, id)
-		if err != nil {
-			return err
-		}
-		return ctx.JSON(200, model)
+		return quickError(ctx, quickHandleID(ctx, func(model, id interface{}) error {
+			return storage.GetByID(model, id)
+		}))
 	})
 
 	server.Post(path, func(ctx Context) error {
@@ -190,6 +197,12 @@ func Handle(crudist Crudist, path string, model interface{}) {
 	server.Delete(path, func(ctx Context) error {
 		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
 			return storage.Delete(model)
+		}))
+	})
+
+	server.Delete(path+":id/", func(ctx Context) error {
+		return quickError(ctx, quickHandleID(ctx, func(model, id interface{}) error {
+			return storage.DeleteByID(model, id)
 		}))
 	})
 
