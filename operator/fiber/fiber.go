@@ -27,18 +27,22 @@ func Fiber(server *fiber.App, configs ...Config) *Operator {
 	return &Operator{server, config.Middleware}
 }
 
+// Get registers new handlers for http get method
 func (g *Operator) Get(path string, handler ...crudist.HandlerFunc) {
 	g.handle(http.MethodGet, path, handler)
 }
 
+// Post registers new handlers for http post method
 func (g *Operator) Post(path string, handler ...crudist.HandlerFunc) {
 	g.handle(http.MethodPost, path, handler)
 }
 
+// Patch registers new handlers for http patch method
 func (g *Operator) Patch(path string, handler ...crudist.HandlerFunc) {
 	g.handle(http.MethodPatch, path, handler)
 }
 
+// Delete registers new handlers for http delete method
 func (g *Operator) Delete(path string, handler ...crudist.HandlerFunc) {
 	g.handle(http.MethodDelete, path, handler)
 }

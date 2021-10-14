@@ -65,7 +65,7 @@ func (g *Storage) Get(models interface{}) error {
 }
 
 // GetByID gets a model with the specific id
-func (g *Storage) GetByID(model interface{}, id interface{}) error {
+func (g *Storage) GetByID(model, id interface{}) error {
 	finder := func(model interface{}, tx *gorm.DB) (*gorm.DB, bool) {
 		return tx.Find(model, id), false
 	}

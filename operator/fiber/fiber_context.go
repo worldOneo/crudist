@@ -10,7 +10,7 @@ type Context struct {
 	ctx *fiber.Ctx
 }
 
-// NewGinContext creates a new context for gin
+// NewFiberContext creates a new context for gin
 func NewFiberContext(ctx *fiber.Ctx) crudist.Context {
 	return &Context{ctx}
 }

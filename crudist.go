@@ -67,11 +67,11 @@ func New(server Server, storage Storage, config ...Config) Crudist {
 type Server interface {
 	// Get registers new handlers for http get method
 	Get(path string, handler ...HandlerFunc)
-	// Get registers new handlers for http Post method
+	// Post registers new handlers for http Post method
 	Post(path string, handler ...HandlerFunc)
-	// Get registers new handlers for http Patch method
+	// Patch registers new handlers for http Patch method
 	Patch(path string, handler ...HandlerFunc)
-	// Get registers new handlers for http Delete method
+	// Delete registers new handlers for http Delete method
 	Delete(path string, handler ...HandlerFunc)
 }
 

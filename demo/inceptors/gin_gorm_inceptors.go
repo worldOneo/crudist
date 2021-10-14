@@ -49,14 +49,13 @@ func main() {
 
 	postStorage := gormstorage.Gorm(db, gormstorage.Config{
 		Inceptors: gormstorage.Inceptors{
-			Get: []gormstorage.Inceptor{userJoin},
+			Get:     []gormstorage.Inceptor{userJoin},
 			GetByID: []gormstorage.Inceptor{userJoin},
 		},
 	})
 
 	users := crudist.New(server, userStorage)
 	posts := crudist.New(server, postStorage)
-
 
 	// crudist Handler for user model
 	crudist.Handle(users, "user/", &models.GormUser{})

@@ -1,5 +1,5 @@
 # CRUDist - Model Driven API Development
-
+[![GoReport](https://goreportcard.com/badge/github.com/worldOneo/crudist)](https://goreportcard.com/report/github.com/worldOneo/crudist)  
 Automagicaly create CRUD APIs for your gorm models.
 
 ## Example
