@@ -53,11 +53,15 @@ func New(server Server, storage Storage, config ...Config) Crudist {
 		IDGenerator: func(id string) (interface{}, error) {
 			return strconv.Atoi(id)
 		},
+		Operations: OperationAll,
 	}
 	if len(config) > 0 {
 		additional := config[0]
 		if additional.IDGenerator != nil {
 			conf.IDGenerator = additional.IDGenerator
+		}
+		if additional.Operations != 0 {
+			conf.Operations = additional.Operations
 		}
 	}
 	return &baseCrudist{server, storage, conf}
@@ -91,6 +95,31 @@ type Storage interface {
 	DeleteByID(model, id interface{}) error
 }
 
+// CrudOperation type defines one operation of CRUD
+type CrudOperation uint64
+
+const (
+	// OperationGet allows the get operation to get all
+	OperationGet CrudOperation = 1 << iota
+	// OperationGetByID allows the get operation to get one item by its ID
+	OperationGetByID
+	// OperationUpdate allows the Update operation to update an item
+	OperationUpdate
+	// OperationCreate allows the Create operation to save a new item
+	OperationCreate
+	// OperationDelete allows the Delete operation to delete an item
+	OperationDelete
+	// OperationDeleteByID allows the Delete operation to delete an item by its ID
+	OperationDeleteByID
+	// OperationAll allows all operations
+	OperationAll = OperationGet |
+		OperationGetByID |
+		OperationUpdate |
+		OperationCreate |
+		OperationDelete |
+		OperationDeleteByID
+)
+
 // Config for additional data for crudist
 type Config struct {
 	// IDGenerator to use for the Storage as id
@@ -98,6 +127,15 @@ type Config struct {
 	//
 	// Default: strconv.Itoa
 	IDGenerator func(id string) (interface{}, error)
+
+	// Operations describes the allowed opperations in the
+	// the CRUD API with this routes can be added or removed
+	// from the API.
+	// The value 0 will result in OperationAll as it would
+	// be a noop otherwise
+	//
+	// Default: OperationAll
+	Operations CrudOperation
 }
 
 // ErrorBadRequest when JSON parsing failed
@@ -126,34 +164,25 @@ func Handle(crudist Crudist, path string, model interface{}) {
 	storage := crudist.Storage()
 	conf := crudist.Config()
 
-	quickHandle := func(ctx Context, f func(model interface{}) error) error {
+	getBody := func(ctx Context) (interface{}, error) {
 		model := newModel()
 		err := ctx.JSONBody(model)
 		if err != nil {
-			return ErrorBadRequest
+			return nil, ErrorBadRequest
 		}
-		err = f(model)
-		if err != nil {
-			return err
-		}
-		return ctx.JSON(200, model)
+		return model, nil
 	}
 
-	quickHandleID := func(ctx Context, f func(model interface{}, id interface{}) error) error {
+	getID := func(ctx Context) (interface{}, error) {
 		stringID := ctx.Param("id")
 		id, err := conf.IDGenerator(stringID)
 		if err != nil {
-			return ErrorBadRequest
+			return nil, ErrorBadRequest
 		}
-		model := newModel()
-		err = f(model, id)
-		if err != nil {
-			return err
-		}
-		return ctx.JSON(200, model)
+		return id, nil
 	}
 
-	quickError := func(ctx Context, err error) error {
+	httpError := func(ctx Context, err error) error {
 		if err != nil {
 			if err == ErrorBadRequest {
 				return ctx.JSON(400, JSONDoc{
@@ -173,42 +202,57 @@ func Handle(crudist Crudist, path string, model interface{}) {
 		return nil
 	}
 
-	server.Get(path, func(ctx Context) error {
-		models := newModels()
-		err := storage.Get(models)
-		if err != nil {
-			return err
+	createModelRoute := func(operation CrudOperation,
+		register func(string, ...HandlerFunc),
+		storageFunc func(interface{}) error) {
+		if conf.Operations&operation == operation {
+			register(path, func(ctx Context) error {
+				body, err := getBody(ctx)
+				if err != nil {
+					return httpError(ctx, err)
+				}
+				err = storageFunc(body)
+				if err != nil {
+					return httpError(ctx, err)
+				}
+				return ctx.JSON(200, body)
+			})
 		}
-		return ctx.JSON(200, models)
-	})
+	}
 
-	server.Get(path+":id/", func(ctx Context) error {
-		return quickError(ctx, quickHandleID(ctx, func(model, id interface{}) error {
-			return storage.GetByID(model, id)
-		}))
-	})
+	createIDRoute := func(operation CrudOperation,
+		register func(string, ...HandlerFunc),
+		storageFunc func(interface{}, interface{}) error) {
+		if conf.Operations&operation == operation {
+			register(path+":id/", func(ctx Context) error {
+				id, err := getID(ctx)
+				if err != nil {
+					return httpError(ctx, err)
+				}
+				model := newModel()
+				err = storageFunc(model, id)
+				if err != nil {
+					return httpError(ctx, err)
+				}
+				return ctx.JSON(200, model)
+			})
+		}
+	}
 
-	server.Post(path, func(ctx Context) error {
-		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
-			return storage.Create(model)
-		}))
-	})
+	if conf.Operations&OperationGet == OperationGet {
+		server.Get(path, func(ctx Context) error {
+			models := newModels()
+			err := storage.Get(models)
+			if err != nil {
+				return err
+			}
+			return ctx.JSON(200, models)
+		})
+	}
 
-	server.Delete(path, func(ctx Context) error {
-		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
-			return storage.Delete(model)
-		}))
-	})
-
-	server.Delete(path+":id/", func(ctx Context) error {
-		return quickError(ctx, quickHandleID(ctx, func(model, id interface{}) error {
-			return storage.DeleteByID(model, id)
-		}))
-	})
-
-	server.Patch(path, func(ctx Context) error {
-		return quickError(ctx, quickHandle(ctx, func(model interface{}) error {
-			return storage.Update(model)
-		}))
-	})
+	createIDRoute(OperationGetByID, server.Get, storage.GetByID)
+	createModelRoute(OperationCreate, server.Post, storage.Create)
+	createModelRoute(OperationUpdate, server.Patch, storage.Update)
+	createModelRoute(OperationDelete, server.Delete, storage.Delete)
+	createIDRoute(OperationDeleteByID, server.Delete, storage.DeleteByID)
 }
