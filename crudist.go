@@ -141,7 +141,7 @@ type Config struct {
 // ErrorBadRequest when JSON parsing failed
 var ErrorBadRequest error = fmt.Errorf("Bad Request")
 
-// ErrorInternalServer when the DB couldn't
+// ErrorInternalServer when the DB couldn't be accessed
 var ErrorInternalServer error = fmt.Errorf("Internal Server Error")
 
 // JSONDoc can be used to create an json document inline
