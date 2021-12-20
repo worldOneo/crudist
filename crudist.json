@@ -45,24 +45,5 @@
         ]
       }
     ]
-  },
-  "framework": "fiber",
-  "endpoints": [
-    {
-      "package": "app",
-      "base_path": "api/v1",
-      "data_type": "mystruct.MyStruct",
-      "name": "my_struct",
-      "upper_name": "MyStruct",
-      "imports": [
-        "github.com/me/myproject/mystruct"
-      ],
-      "operators": [
-        "CREATE",
-        "READ",
-        "UPDATE",
-        "DELETE"
-      ]
-    }
-  ]
+  }
 }
