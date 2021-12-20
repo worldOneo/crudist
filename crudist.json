@@ -1,0 +1,68 @@
+{
+  "errors": {
+    "package": "errors",
+    "errors": [
+      {
+        "name": "ConfigRead",
+        "short": "CONFIG READ",
+        "message": "failed to read the config file %s: %v",
+        "parameters": [
+          "string",
+          "error"
+        ]
+      },
+      {
+        "name": "ConfigParse",
+        "short": "BAD CONFIG",
+        "message": "failed to parse the config: %v",
+        "parameters": [
+          "error"
+        ]
+      },
+      {
+        "name": "Template",
+        "short": "TEMPLATE",
+        "message": "failed to execute the template: %v",
+        "parameters": [
+          "error"
+        ]
+      },
+      {
+        "name": "FileWrite",
+        "short": "WRITE FILE",
+        "message": "failed to write to %s: %v",
+        "parameters": [
+          "string",
+          "error"
+        ]
+      },
+      {
+        "name": "FrameworkMissing",
+        "short": "FRAMEWORK MISSING",
+        "message": "framework %s doesnt exist",
+        "parameters": [
+          "string"
+        ]
+      }
+    ]
+  },
+  "framework": "fiber",
+  "endpoints": [
+    {
+      "package": "app",
+      "base_path": "api/v1",
+      "data_type": "mystruct.MyStruct",
+      "name": "my_struct",
+      "upper_name": "MyStruct",
+      "imports": [
+        "github.com/me/myproject/mystruct"
+      ],
+      "operators": [
+        "CREATE",
+        "READ",
+        "UPDATE",
+        "DELETE"
+      ]
+    }
+  ]
+}
